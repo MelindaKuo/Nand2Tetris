@@ -37,6 +37,9 @@ M=M-1
 @LOOP
 0;JMP
 
+@END
+0;JMP
+
 
 
 
