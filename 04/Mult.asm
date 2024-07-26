@@ -29,7 +29,7 @@ D=M
 
 
 @R2
-M=D
+M=M+D
 
 @value1
 M=M-1
