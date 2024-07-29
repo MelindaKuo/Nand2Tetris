@@ -43,7 +43,7 @@ class Parser:
 
 
     def arg2(self):
-        if self.command_type[2:].lower not in {'push', 'pop', 'function', 'call'}:
+        if self.command_type[2:] not in {'PUSH', 'POP', 'FUNCTION', 'CALL'}:
             return self.currCommand.split()[2]
         else:
             raise TypeError("Must be Push/Pop/Function/Call")
