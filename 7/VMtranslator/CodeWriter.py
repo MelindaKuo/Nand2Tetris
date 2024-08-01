@@ -58,7 +58,17 @@ class CodeWriter:
             return "!M"
         
 
-    def write_Arithmetic()
+    def writePushPop(self, command,segment, index):
+        if command == "C_PUSH":
+            self.push_logic(segment, index)
+        else:
+            self.pop_logic(segment, index)
+
+    def writeArithmetic(self, )
+
+
+
+
         
 
 
