@@ -1,84 +1,165 @@
-
 class CodeWriter:
+    def __init__(self, output_file):
+        self.output_file = open(output_file, 'w')
+        self.file_name = None
+        self.label_counter = 0
 
-    def __init__(self, outFile):
-        self.outFile = outFile
-        self.file = open(self.outputFile, 'w')
+    def set_file_name(self, file_name):
+        self.file_name = file_name
 
-    
+    def write_arithmetic(self, command):
+        if command == 'add':
+            self._write_binary_operation('M+D')
+        elif command == 'sub':
+            self._write_binary_operation('M-D')
+        elif command == 'neg':
+            self._write_unary_operation('-M')
+        elif command == 'eq':
+            self._write_comparison('JEQ')
+        elif command == 'gt':
+            self._write_comparison('JGT')
+        elif command == 'lt':
+            self._write_comparison('JLT')
+        elif command == 'and':
+            self._write_binary_operation('M&D')
+        elif command == 'or':
+            self._write_binary_operation('M|D')
+        elif command == 'not':
+            self._write_unary_operation('!M')
 
-    def get_segment_pointer(self, segment, index):
-        if segment == "local":
+    def write_push_pop(self, command, segment, index):
+        if command == 'push':
+            if segment == 'constant':
+                self._write_push_constant(index)
+            else:
+                self._write_push_segment(segment, index)
+        elif command == 'pop':
+            self._write_pop_segment(segment, index)
+
+    def _write_push_constant(self, value):
+        self._write_code([
+            f'@{value}',
+            'D=A',
+            '@SP',
+            'A=M',
+            'M=D',
+            '@SP',
+            'M=M+1'
+        ])
+
+    def _write_push_segment(self, segment, index):
+        if segment == 'static':
+            segment_pointer = f'@{self.file_name}.{index}'
+        else:
+            segment_pointer = self._get_segment_pointer(segment, index)
+
+        if segment == 'constant':
+            self._write_code([
+                segment_pointer,
+                'D=A',
+                '@SP',
+                'A=M',
+                'M=D',
+                '@SP',
+                'M=M+1'
+            ])
+        else:
+            self._write_code([
+                segment_pointer,
+                'D=M',
+                '@SP',
+                'A=M',
+                'M=D',
+                '@SP',
+                'M=M+1'
+            ])
+
+    def _write_pop_segment(self, segment, index):
+        if segment == 'static':
+            segment_pointer = f'@{self.file_name}.{index}'
+        else:
+            segment_pointer = self._get_segment_pointer(segment, index)
+
+        self._write_code([
+            '@SP',
+            'M=M-1',
+            'A=M',
+            'D=M',
+            segment_pointer,
+            'M=D'
+        ])
+
+    def _get_segment_pointer(self, segment, index):
+        if segment == 'local':
             return f'@LCL\nD=M\n@{index}\nA=D+A'
-        if segment == "argument":
+        elif segment == 'argument':
             return f'@ARG\nD=M\n@{index}\nA=D+A'
-        if segment == "this":
+        elif segment == 'this':
             return f'@THIS\nD=M\n@{index}\nA=D+A'
-        if segment == "that":
+        elif segment == 'that':
             return f'@THAT\nD=M\n@{index}\nA=D+A'
-        if segment == "static":
-            return f'@{self.file}'
-        if segment == "temp":
-            return f'@R{5+index}'
-        if segment == "pointer":
-            return f'@R{3+index}'
-        
-
-    
-    def push_logic(self, segment, index):
-        segment_pointer = self.get_segment_pointer(segment, index)
-        if segment == "constant":
-            return f'@{index}\nD=A\n@SP\nA=M\nM=D\n@SP\nM=M+1'
+        elif segment == 'temp':
+            return f'@R{5 + index}'
+        elif segment == 'pointer':
+            return f'@R{3 + index}'
         else:
-            return segment_pointer + '\nD=A\n@SP\nA=M\nM=D\n@SP\nM=M+1'
-    
-    def pop_logic(self, segment, index):
-        segment_pointer = self.get_segment_pointer(segment, index)
-        return f'@SP\nM=M-1\nA=M\nD=M\n{segment_pointer}\nM=D'
-    
+            raise ValueError(f'Unknown segment: {segment}')
 
-    def define_Arithmetic(self, operation):
-        if operation == "add":
-            return "M+D"
-        if operation == "sub":
-            return "M-D"
-        if operation == "neg":
-            return "-M"
-        if operation == "eq":
-            return "JEQ"
-        if operation == "gt":
-            return "JGT"
-        if operation == "lt":
-            return "JLT"
-        if operation == "and":
-            return "M&D"
-        if operation == "or":
-            return "M|D"
-        if operation == "not":
-            return "!M"
-        
+    def _write_binary_operation(self, operation):
+        self._write_code([
+            '@SP',
+            'M=M-1',
+            'A=M',
+            'D=M',
+            '@SP',
+            'M=M-1',
+            'A=M',
+            f'M=M{operation}',
+            '@SP',
+            'M=M+1'
+        ])
 
-    def writePushPop(self, command,segment, index):
-        if command == "C_PUSH":
-            self.push_logic(segment, index)
-        else:
-            self.pop_logic(segment, index)
+    def _write_unary_operation(self, operation):
+        self._write_code([
+            '@SP',
+            'M=M-1',
+            'A=M',
+            f'M={operation}',
+            '@SP',
+            'M=M+1'
+        ])
 
-    def writeArithmetic(self, )
+    def _write_comparison(self, jump):
+        self.label_counter += 1
+        label_true = f'TRUE_{self.label_counter}'
+        label_end = f'END_{self.label_counter}'
+        self._write_code([
+            '@SP',
+            'M=M-1',
+            'A=M',
+            'D=M',
+            '@SP',
+            'M=M-1',
+            'A=M',
+            'D=M-D',
+            f'@{label_true}',
+            f'D;{jump}',
+            '@SP',
+            'A=M',
+            'M=0',
+            f'@{label_end}',
+            '0;JMP',
+            f'({label_true})',
+            '@SP',
+            'A=M',
+            'M=-1',
+            f'({label_end})',
+            '@SP',
+            'M=M+1'
+        ])
 
-
-
-
-        
-
-
-        
-
-
-
-    
-
-
+    def _write_code(self, code):
+        self.output_file.write('\n'.join(code) + '\n')
 
     def close(self):
-        self.file.close()
+        self.output_file.close()
