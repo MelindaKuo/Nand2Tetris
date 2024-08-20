@@ -158,6 +158,169 @@ class CodeWriter:
             'M=M+1'
         ])
 
+    def writeLabel(self,label):
+        self._write_code([f'({label})'])
+
+    def writeGoto(self, label):
+        self._write_code([
+            f'@{label}', 
+            '0;JMP'
+        ])
+
+    def writeIf(self, label):
+        self._write_code([
+            '@SP', 
+            'M = M-1', 
+            'A=M', 
+            'D=M', 
+            f'@{label}',
+            'D;JNE'
+        ])
+    
+    def writeFunction(self, functionName, nVars):
+        self._write_code([f'({functionName})'])
+        for i in range(nVars):
+            self.write_push_pop('push', 'constant', 0)
+    
+    def writeCall(self, functionName, nArgs):
+    return_address = f'{functionName}$ret.{self.label_counter}'
+    self.label_counter += 1
+
+    self._write_code([
+        # Push return address
+        f'@{return_address}',
+        'D=A',
+        '@SP',
+        'A=M',
+        'M=D',
+        '@SP',
+        'M=M+1',
+
+        # Push LCL
+        '@LCL',
+        'D=M',
+        '@SP',
+        'A=M',
+        'M=D',
+        '@SP',
+        'M=M+1',
+
+        # Push ARG
+        '@ARG',
+        'D=M',
+        '@SP',
+        'A=M',
+        'M=D',
+        '@SP',
+        'M=M+1',
+
+        # Push THIS
+        '@THIS',
+        'D=M',
+        '@SP',
+        'A=M',
+        'M=D',
+        '@SP',
+        'M=M+1',
+
+        # Push THAT
+        '@THAT',
+        'D=M',
+        '@SP',
+        'A=M',
+        'M=D',
+        '@SP',
+        'M=M+1',
+
+        # ARG = SP - nArgs - 5
+        '@SP',
+        'D=M',
+        f'@{nArgs + 5}',
+        'D=D-A',
+        '@ARG',
+        'M=D',
+
+        # LCL = SP
+        '@SP',
+        'D=M',
+        '@LCL',
+        'M=D',
+
+        # Goto function
+        f'@{functionName}',
+        '0;JMP',
+
+        # Declare return label
+        f'({return_address})'
+    ])
+
+    
+    def writeReturn(self):
+    self._write_code([
+        # FRAME = LCL (save LCL in a temporary variable)
+        '@LCL',
+        'D=M',
+        '@R13',
+        'M=D',
+
+        # RET = *(FRAME - 5) (save return address in a temporary variable)
+        '@5',
+        'A=D-A',
+        'D=M',
+        '@R14',
+        'M=D',
+
+        # *ARG = pop() (reposition the return value for the caller)
+        '@SP',
+        'M=M-1',
+        'A=M',
+        'D=M',
+        '@ARG',
+        'A=M',
+        'M=D',
+
+        # SP = ARG + 1 (restore SP of the caller)
+        '@ARG',
+        'D=M+1',
+        '@SP',
+        'M=D',
+
+        # THAT = *(FRAME - 1) (restore THAT)
+        '@R13',
+        'AM=M-1',
+        'D=M',
+        '@THAT',
+        'M=D',
+
+        # THIS = *(FRAME - 2) (restore THIS)
+        '@R13',
+        'AM=M-1',
+        'D=M',
+        '@THIS',
+        'M=D',
+
+        # ARG = *(FRAME - 3) (restore ARG)
+        '@R13',
+        'AM=M-1',
+        'D=M',
+        '@ARG',
+        'M=D',
+
+        # LCL = *(FRAME - 4) (restore LCL)
+        '@R13',
+        'AM=M-1',
+        'D=M',
+        '@LCL',
+        'M=D',
+
+        # Goto RET (goto return address)
+        '@R14',
+        'A=M',
+        '0;JMP'
+    ])
+
+
+
     def _write_code(self, code):
         self.output_file.write('\n'.join(code) + '\n')
 
